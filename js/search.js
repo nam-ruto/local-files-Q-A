@@ -33,7 +33,7 @@ class VectorSearch {
                 };
             }
 
-            // Step 3: Calculate similarities with enhanced scoring
+            // Step 3: Calculate similarities
             const similarities = chunks.map(chunk => {
                 try {
                     // Ensure embedding is Float32Array
@@ -42,51 +42,29 @@ class VectorSearch {
                         chunkEmbedding = new Float32Array(chunkEmbedding);
                     }
 
-                    // Vector similarity
-                    const vectorSimilarity = embeddingGenerator.constructor.cosineSimilarity(
+                    const similarity = embeddingGenerator.constructor.cosineSimilarity(
                         queryEmbedding, 
                         chunkEmbedding
                     );
 
-                    // Keyword similarity as backup/boost
-                    const keywordSimilarity = embeddingGenerator.constructor.keywordSimilarity(
-                        queryText,
-                        chunk.text
-                    );
-
-                    // Combine both similarities (vector gets more weight)
-                    const combinedSimilarity = (vectorSimilarity * 0.7) + (keywordSimilarity * 0.3);
-
                     return {
                         chunk,
-                        similarity: combinedSimilarity,
-                        vectorSimilarity,
-                        keywordSimilarity,
+                        similarity,
                         documentId: chunk.documentId
                     };
                 } catch (error) {
                     console.error('Error calculating similarity for chunk:', chunk.id, error);
-                    
-                    // Fallback to keyword-only similarity
-                    const keywordSimilarity = embeddingGenerator.constructor.keywordSimilarity(
-                        queryText,
-                        chunk.text
-                    );
-                    
                     return {
                         chunk,
-                        similarity: keywordSimilarity,
-                        vectorSimilarity: 0,
-                        keywordSimilarity,
+                        similarity: 0,
                         documentId: chunk.documentId
                     };
                 }
             });
 
-            // Step 4: Filter and sort results with lower threshold for TF-IDF
-            const adjustedThreshold = this.similarityThreshold * 0.5; // Lower threshold for TF-IDF
+            // Step 4: Filter and sort results
             const filteredResults = similarities
-                .filter(result => result.similarity >= adjustedThreshold)
+                .filter(result => result.similarity >= this.similarityThreshold)
                 .sort((a, b) => b.similarity - a.similarity)
                 .slice(0, topK);
 
@@ -258,8 +236,8 @@ class VectorSearch {
         });
         
         // Truncate if too long
-        if (highlightedText.length > 300) {
-            highlightedText = highlightedText.substring(0, 300) + '...';
+        if (highlightedText.length > 400) {
+            highlightedText = highlightedText.substring(0, 400) + '...';
         }
         
         return highlightedText;
